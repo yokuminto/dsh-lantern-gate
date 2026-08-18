@@ -1,8 +1,8 @@
-# dsh-mobile-gate — Full Document (llms-full.txt)
+# dsh-lantern-gate — Full Document (llms-full.txt)
 
 > Generated for LLM ingestion. Concatenation of llms.txt, README.en.md, and README.md (zh).
 
-# dsh-mobile-gate
+# dsh-lantern-gate
 
 > LAN mobile gateway for DeepSeek Harness (DSH): an isolated Node gateway on 0.0.0.0:3088 that reverse-proxies the local DSH Web UI to approved LAN devices, with first-visit approval, per-device token + cookie binding, per-IP rate limiting, and automatic mobile layout injection. 局域网手机安全访问 DSH 的即插即用网关。
 
@@ -10,7 +10,7 @@ For the complete combined document, see [llms-full.txt](llms-full.txt). For huma
 
 ## Key facts
 
-- [Repository](https://github.com/Bernardxu123/dsh-mobile-gate): GitHub repo, MIT license, `dsh-plugin` topic.
+- [Repository](https://github.com/yokuminto/dsh-lantern-gate): GitHub repo, MIT license, `dsh-plugin` topic.
 - [Install](README.md#方式一静态挂载推荐重启后常驻): mount via `cordis.patch.yml` (`file://` path or `dsh plugin add`), or register as a dynamic Cordis plugin; no DSH restart needed for the dynamic path.
 - [Architecture](README.md#-工作原理): standalone child-process gateway, DSH webserver untouched (still 127.0.0.1), `/api` trust fence intact.
 - [Admin page](README.md#使用流程): http://127.0.0.1:3088/lan-gate/admin — approve / deny / revoke devices, set access kind (phone/desktop/auto).
@@ -36,7 +36,7 @@ For the complete combined document, see [llms-full.txt](llms-full.txt). For huma
 
 # English README
 
-# dsh-mobile-gate · LAN Mobile Gateway for DeepSeek Harness (DSH)
+# dsh-lantern-gate · LAN Mobile Gateway for DeepSeek Harness (DSH)
 
 > Let phones and tablets on your LAN **safely access** your local [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web UI, with **mobile-friendly layout** injected automatically.
 >
@@ -97,7 +97,7 @@ PC http://127.0.0.1:3088/lan-gate/admin → admin page (approve / deny / revoke 
 
 ```bash
 # Install from a local checkout (run in the directory containing this repo)
-dsh plugin --profile web add ./dsh-mobile-gate
+dsh plugin --profile web add github:yokuminto/dsh-lantern-gate
 ```
 
 > This repo declares a `dsh.bundle` manifest, so the config layer activates automatically after install — no manual patch needed.
@@ -106,13 +106,13 @@ dsh plugin --profile web add ./dsh-mobile-gate
 
 1. Clone or download this repo:
    ```bash
-   git clone https://github.com/Bernardxu123/dsh-mobile-gate.git
+   git clone https://github.com/yokuminto/dsh-lantern-gate.git
    ```
 2. Edit `~/.dsh/profiles/web/cordis.patch.yml` (create it if missing; if it contains only `[]`, replace it), following [`cordis.patch.yml.example`](cordis.patch.yml.example):
    ```yaml
    - insert:
-       - id: dsh-mobile-gate
-         name: 'file:///D:/path/to/dsh-mobile-gate/lan-gate.mjs'
+       - id: dsh-lantern-gate
+         name: 'file:///D:/path/to/dsh-lantern-gate/lan-gate.mjs'
    ```
 3. Restart DSH. The gateway listens on `0.0.0.0:3088`.
 
@@ -193,7 +193,7 @@ A: Static mount: delete the insert entry and restart. Dynamic plugin: stop/undef
 ## 📦 Project structure
 
 ```
-dsh-mobile-gate/
+dsh-lantern-gate/
 ├── lan-gate.mjs              # Cordis plugin entry (spawns the gateway via subprocess)
 ├── lib/
 │   └── lan-gate-server.cjs   # Standalone gateway server (zero-dependency, single file ~30KB)
@@ -223,7 +223,7 @@ Key differences: the gateway runs as an **isolated child process** (no modificat
 
 # 中文 README
 
-# dsh-mobile-gate · DSH 局域网手机访问网关
+# dsh-lantern-gate · DSH 局域网手机访问网关
 
 > 让局域网内的手机、平板等设备**安全访问**本机 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web UI，并自动注入**手机端紧凑排版**。
 >
@@ -284,7 +284,7 @@ Key differences: the gateway runs as an **isolated child process** (no modificat
 
 ```bash
 # 本地目录安装（先在仓库所在目录执行）
-dsh plugin --profile web add ./dsh-mobile-gate
+dsh plugin --profile web add github:yokuminto/dsh-lantern-gate
 ```
 
 > 本仓库声明了 `dsh.bundle` manifest，安装后自动激活配置层，无需手写 patch。
@@ -293,14 +293,14 @@ dsh plugin --profile web add ./dsh-mobile-gate
 
 1. 把本仓库 clone 或下载到本机任意目录：
    ```bash
-   git clone https://github.com/Bernardxu123/dsh-mobile-gate.git
+   git clone https://github.com/yokuminto/dsh-lantern-gate.git
    ```
 2. 编辑 DSH 配置补丁 `~/.dsh/profiles/web/cordis.patch.yml`（没有则创建，内容是空数组 `[]` 时直接替换），参照 [`cordis.patch.yml.example`](cordis.patch.yml.example) 追加：
    ```yaml
    - insert:
-       - id: dsh-mobile-gate
+       - id: dsh-lantern-gate
          # Windows 绝对路径用 file:/// 形式
-         name: 'file:///D:/path/to/dsh-mobile-gate/lan-gate.mjs'
+         name: 'file:///D:/path/to/dsh-lantern-gate/lan-gate.mjs'
    ```
 3. 重启 DSH。网关自动监听 `0.0.0.0:3088`。
 
@@ -382,7 +382,7 @@ A: 静态挂载：删除 `cordis.patch.yml` 中的 insert 条目并重启；动�
 ## 📦 项目结构
 
 ```
-dsh-mobile-gate/
+dsh-lantern-gate/
 ├── lan-gate.mjs              # Cordis 插件入口（subprocess 拉起网关，管理生命周期）
 ├── lib/
 │   └── lan-gate-server.cjs   # 独立网关服务器（零依赖，单文件 ~30KB）
