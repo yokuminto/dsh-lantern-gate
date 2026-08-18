@@ -1,0 +1,409 @@
+# dsh-mobile-gate — Full Document (llms-full.txt)
+
+> Generated for LLM ingestion. Concatenation of llms.txt, README.en.md, and README.md (zh).
+
+# dsh-mobile-gate
+
+> LAN mobile gateway for DeepSeek Harness (DSH): an isolated Node gateway on 0.0.0.0:3088 that reverse-proxies the local DSH Web UI to approved LAN devices, with first-visit approval, per-device token + cookie binding, per-IP rate limiting, and automatic mobile layout injection. 局域网手机安全访问 DSH 的即插即用网关。
+
+For the complete combined document, see [llms-full.txt](llms-full.txt). For human-readable docs, see [README.md](README.md) (中文) and [README.en.md](README.en.md) (English).
+
+## Key facts
+
+- [Repository](https://github.com/Bernardxu123/dsh-mobile-gate): GitHub repo, MIT license, `dsh-plugin` topic.
+- [Install](README.md#方式一静态挂载推荐重启后常驻): mount via `cordis.patch.yml` (`file://` path or `dsh plugin add`), or register as a dynamic Cordis plugin; no DSH restart needed for the dynamic path.
+- [Architecture](README.md#-工作原理): standalone child-process gateway, DSH webserver untouched (still 127.0.0.1), `/api` trust fence intact.
+- [Admin page](README.md#使用流程): http://127.0.0.1:3088/lan-gate/admin — approve / deny / revoke devices, set access kind (phone/desktop/auto).
+- [Configuration](README.md#-配置): env vars `LAN_GATE_PORT` (3088), `LAN_GATE_HOST` (0.0.0.0), `LAN_GATE_TARGET_PORT` (3080), `LAN_GATE_RATE_LIMIT` (120).
+- [Security model](README.md#-安全机制): first-visit approval, one-time token bound to one browser, 120 req/min per IP, loopback & LAN IP bypass.
+- [Mobile adaptation](README.md#-手机端布局优化已内置): injects `data-lan-device="phone"` + compact CSS (permission/model selectors become 24px pill buttons) + `crypto.randomUUID` polyfill; desktop unaffected.
+
+## Documentation
+
+- [README.md (中文)](README.md): features, architecture, quick start, config, admin API, mobile layout, FAQ, security notes.
+- [README.en.md (English)](README.en.md): same content in English.
+- [cordis.patch.yml.example](cordis.patch.yml.example): static mount example.
+- [package.json](package.json): npm metadata with `dsh.bundle` manifest for `dsh plugin add`.
+- [AGENTS.md](AGENTS.md): repository guide for AI agents.
+
+## Source layout
+
+- [lan-gate.mjs](lan-gate.mjs): Cordis plugin entry — spawns the gateway child process via the `subprocess` service and manages its lifecycle.
+- [lib/lan-gate-server.cjs](lib/lan-gate-server.cjs): standalone zero-dependency gateway server (~30KB single file): HTTP proxy, WebSocket upgrade proxy, approval state machine, token cookies, rate limiting, admin page + JSON API, mobile CSS injection.
+
+
+---
+
+# English README
+
+# dsh-mobile-gate · LAN Mobile Gateway for DeepSeek Harness (DSH)
+
+> Let phones and tablets on your LAN **safely access** your local [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web UI, with **mobile-friendly layout** injected automatically.
+>
+> 中文文档: [README.md](README.md) · LLM index: [llms.txt](llms.txt) · Agent guide: [AGENTS.md](AGENTS.md)
+
+![dsh-plugin](https://img.shields.io/badge/dsh--plugin-ready-4c8dff) ![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-✓-0f1115) ![license](https://img.shields.io/badge/license-MIT-green) ![install](https://img.shields.io/badge/dsh%20plugin%20add-✓-22c55e)
+
+**Keywords**: `dsh-plugin` · `deepseek-harness-plugin` · LAN · 局域网 · mobile · phone · reverse-proxy · remote-access · approval · gateway
+
+---
+
+## 📑 Table of Contents
+
+- [✨ Features](#-features)
+- [🏗️ How it works](#️-how-it-works)
+- [🚀 Quick start](#-quick-start)
+- [⚙️ Configuration](#️-configuration)
+- [🧑💻 Admin API](#-admin-api-local-only)
+- [🧱 Mobile layout tweaks](#-mobile-layout-tweaks-built-in)
+- [❓ FAQ](#-faq)
+- [⚠️ Security notes](#️-security-notes)
+- [📦 Project structure](#-project-structure)
+- [🙏 Credits](#-credits)
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+| --- | --- |
+| 📱 **Mobile adaptation** | Injects `data-lan-device` marker + compact layout CSS + `crypto.randomUUID` polyfill (required for non-secure HTTP contexts) into proxied HTML. Permission & model selectors in the composer footer become compact pill buttons — no more overlap |
+| 🔒 **First-visit approval** | A phone's first visit shows "Waiting for approval"; you must allow it from the PC. Unauthorized devices can never reach DSH |
+| 🎟️ **Per-device token + cookie binding** | One-time token issued after approval, bound to exactly one browser |
+| 🛡️ **Per-IP rate limiting** | Default 120 req/min per IP, 429 beyond that |
+| 🏠 **Loopback bypass** | Loopback and the machine's own LAN IPs pass through directly — desktop experience unchanged |
+| 🚀 **Zero intrusion into the host** | Isolated child-process gateway. DSH's own webserver stays on 127.0.0.1 and the `/api` trust fence is untouched; a gateway crash cannot take DSH down |
+| 🧹 **Plug & play / removable** | Install via `dsh plugin add`, mount via `cordis.patch.yml`, or run as a dynamic plugin; unmounting/stopping terminates the gateway |
+
+## 🏗️ How it works
+
+```
+Phone http://192.168.31.108:3088
+  └─ Gateway (standalone Node process, 0.0.0.0:3088)
+       ├─ Not approved  → "Waiting for approval" page (shows device IP, auto-polls)
+       ├─ Approved + cookie token → reverse-proxy to DSH Web UI (127.0.0.1:3080)
+       │      └─ HTML injection: data-lan-device="phone" + compact CSS + randomUUID polyfill
+       └─ Rate-limited  → 429 page
+
+PC http://127.0.0.1:3088/lan-gate/admin → admin page (approve / deny / revoke / set kind)
+```
+
+- The gateway is a **separate child process**, isolated from the DSH main process.
+- DSH's webserver still binds only `127.0.0.1` (the official CLI intentionally rejects `--host 0.0.0.0` because `/api` has no auth layer). **Only approved, token-holding devices reach DSH.**
+
+## 🚀 Quick start
+
+### Option 0: `dsh plugin add` (standard install, official plugin ecosystem)
+
+```bash
+# Install from a local checkout (run in the directory containing this repo)
+dsh plugin --profile web add ./dsh-mobile-gate
+```
+
+> This repo declares a `dsh.bundle` manifest, so the config layer activates automatically after install — no manual patch needed.
+
+### Option A: static mount (recommended, persists across restarts)
+
+1. Clone or download this repo:
+   ```bash
+   git clone https://github.com/Bernardxu123/dsh-mobile-gate.git
+   ```
+2. Edit `~/.dsh/profiles/web/cordis.patch.yml` (create it if missing; if it contains only `[]`, replace it), following [`cordis.patch.yml.example`](cordis.patch.yml.example):
+   ```yaml
+   - insert:
+       - id: dsh-mobile-gate
+         name: 'file:///D:/path/to/dsh-mobile-gate/lan-gate.mjs'
+   ```
+3. Restart DSH. The gateway listens on `0.0.0.0:3088`.
+
+### Option B: dynamic plugin (no restart, immediate)
+
+Register the `apply` logic of `lan-gate.mjs` as a dynamic Host Cordis plugin in a DSH session; it spawns the gateway via the `subprocess` service. Stopping/uninstalling the plugin terminates the gateway.
+
+### Usage flow
+
+1. Open the admin page on your PC: <http://127.0.0.1:3088/lan-gate/admin>
+2. Connect your phone to the **same Wi-Fi**, visit the address listed on the admin page, e.g. `http://192.168.31.108:3088`
+3. The phone shows "Waiting for approval". Back on the PC admin page, pick an access mode for the device:
+   - **手机 / phone** = compact layout (recommended)
+   - **电脑 / desktop** = desktop layout
+   - **自动 / auto** = adaptive
+4. Click **允许 / Allow**. The phone refreshes, claims its token, and lands in the DSH Web UI.
+
+## ⚙️ Configuration
+
+Environment variables (edit defaults at the top of `lib/lan-gate-server.cjs`, or set before launch):
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LAN_GATE_PORT` | `3088` | Gateway listen port |
+| `LAN_GATE_HOST` | `0.0.0.0` | Listen address (tighten to `127.0.0.1` for local-only) |
+| `LAN_GATE_TARGET_PORT` | `3080` | DSH Web UI port |
+| `LAN_GATE_RATE_LIMIT` | `120` | Per-IP requests per minute |
+
+- Port auto-increments on conflict (up to +20).
+- Approvals persist in `~/.dsh/lan-gate-state.json` (survive restarts; the pending list is in-memory and re-triggered by a fresh visit).
+
+## 🧑‍💻 Admin API (local only)
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/lan-gate/status` | Status JSON: URLs, pending / approved / denied devices |
+| `POST` | `/lan-gate/action` | `{action: approve\|deny\|revoke\|revoke-all\|set-kind, ip, kind}` |
+
+```bash
+curl http://127.0.0.1:3088/lan-gate/status
+curl -X POST http://127.0.0.1:3088/lan-gate/action \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"approve","ip":"192.168.31.125","kind":"phone"}'
+```
+
+## 🧱 Mobile layout tweaks (built-in)
+
+Injected into proxied HTML, scoped to `html[data-lan-device="phone"]` only — **desktop is never affected**:
+
+- Compressed chat font sizes / line heights; Markdown tuned for narrow screens
+- Composer footer: **permission & model selectors become 24px pill buttons**, 11px text, model effort suffix hidden, ellipsis overflow — fixes the overlap on phones
+- Dialogs/menus go fullscreen; touch targets enlarged (`min-height:32px`, `touch-action:manipulation`)
+- `crypto.randomUUID` polyfill (otherwise the SPA can white-screen over plain HTTP)
+
+## ❓ FAQ
+
+**Q: Phone shows "connection refused"?**
+A: Make sure both devices are on the same LAN; on Windows, allow Node.js inbound when the firewall prompt appears, or add a rule:
+```powershell
+New-NetFirewallRule -DisplayName 'DSH Mobile Gate 3088' -Direction Inbound -LocalPort 3088 -Protocol TCP -Action Allow -Profile Any
+```
+
+**Q: Admin page stuck on "Loading…"?**
+A: Hard-refresh the page. (An earlier build had a quoting bug in the admin inline JS; fixed in v1.0.0. Clear cache if it persists.)
+
+**Q: Blank page after approval?**
+A: Usually missing `crypto.randomUUID` on non-secure HTTP; the gateway injects a polyfill. If it still fails, report your browser model/version.
+
+**Q: How to remove completely?**
+A: Static mount: delete the insert entry and restart. Dynamic plugin: stop/undefine the plugin — the gateway child exits with it.
+
+## ⚠️ Security notes
+
+- No independent auth layer; use only on **trusted LANs**. Verify a device's identity before approving.
+- DSH Web UI runs over plain HTTP and the token travels via cookie — do not use across untrusted networks.
+- Consider "Revoke all" periodically and re-approve devices.
+
+## 📦 Project structure
+
+```
+dsh-mobile-gate/
+├── lan-gate.mjs              # Cordis plugin entry (spawns the gateway via subprocess)
+├── lib/
+│   └── lan-gate-server.cjs   # Standalone gateway server (zero-dependency, single file ~30KB)
+├── cordis.patch.yml          # dsh.bundle config layer (for `dsh plugin add`)
+├── cordis.patch.yml.example  # Static mount example
+├── AGENTS.md                 # AI agent repository guide
+├── llms.txt / llms-full.txt  # LLM doc index / full text
+├── package.json              # npm metadata + dsh.bundle manifest
+├── README.md / README.en.md  # Bilingual docs
+└── LICENSE
+```
+
+## 🙏 Credits
+
+Inspired by excellent community projects:
+- [hchao3335-maker/dsh-lan-gate](https://github.com/hchao3335-maker/dsh-lan-gate) — approval gate, device tokens, rate limiting, mobile adaptation
+- [Leon0555/dsh-lan-access](https://github.com/Leon0555/dsh-lan-access) — direct 0.0.0.0 binding idea
+
+Key differences: the gateway runs as an **isolated child process** (no modification of DSH host config, no touching the trust fence), and mobile CSS targets stable `aria-haspopup`/slot selectors (more resilient to frontend upgrades).
+
+## 📄 License
+
+[MIT](LICENSE)
+
+
+---
+
+# 中文 README
+
+# dsh-mobile-gate · DSH 局域网手机访问网关
+
+> 让局域网内的手机、平板等设备**安全访问**本机 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web UI，并自动注入**手机端紧凑排版**。
+>
+> English: [README.en.md](README.en.md) · LLM 索引: [llms.txt](llms.txt) · Agent 指南: [AGENTS.md](AGENTS.md)
+
+![dsh-plugin](https://img.shields.io/badge/dsh--plugin-ready-4c8dff) ![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-✓-0f1115) ![license](https://img.shields.io/badge/license-MIT-green) ![install](https://img.shields.io/badge/dsh%20plugin%20add-✓-22c55e)
+
+**关键词 / Keywords**: `dsh-plugin` · `deepseek-harness-plugin` · 局域网 · LAN · 手机访问 · mobile · 反向代理 · reverse-proxy · 远程访问 · remote-access · 审批 · approval · 网关 · gateway
+
+---
+
+## 📑 目录
+
+- [✨ 特性](#-特性)
+- [🏗️ 工作原理](#️-工作原理)
+- [🚀 快速开始](#-快速开始)
+- [⚙️ 配置](#️-配置)
+- [🧑💻 管理 API](#-管理-api)
+- [🧱 手机端布局优化](#-手机端布局优化已内置)
+- [❓ 常见问题](#-常见问题)
+- [⚠️ 安全须知](#️-安全须知)
+- [📦 项目结构](#-项目结构)
+- [🙏 致谢](#-致谢)
+
+---
+
+## ✨ 特性
+
+| 特性 | 说明 |
+| --- | --- |
+| 📱 **手机端适配** | 代理 HTML 时自动注入 `data-lan-device` 标记 + 紧凑排版 CSS + `crypto.randomUUID` polyfill（HTTP 非安全上下文必需），输入区权限/模型选择器压缩为小胶囊按钮，不再重叠 |
+| 🔒 **首次访问审批** | 手机第一次访问显示「等待本机批准」，需在电脑上手动允许，杜绝未授权设备访问 |
+| 🎟️ **设备令牌 + Cookie 绑定** | 批准后生成一次性令牌，一次批准只绑定一个浏览器，令牌无法被其他设备复用 |
+| 🛡️ **每 IP 限流** | 默认每分钟 120 次请求，超限返回 429，防止滥用 |
+| 🏠 **本机免审批** | 回环地址与本机 LAN IP 直接放行，电脑端体验不变 |
+| 🚀 **零侵入主服务** | 独立子进程网关，**不动 DSH 主服务**——webserver 仍只监听 127.0.0.1，`/api` 信任栅栏不受影响；网关挂掉也不影响 DSH |
+| 🧹 **即插即用 / 可卸载** | `dsh plugin add` 安装、cordis.patch.yml 挂载、或动态插件，三种方式；移除即终止 |
+
+## 🏗️ 工作原理
+
+```
+手机 http://192.168.31.108:3088
+  └─ 网关（独立 Node 进程，0.0.0.0:3088）
+       ├─ 未批准 → 「等待本机批准」页面（含设备 IP，自动轮询）
+       ├─ 已批准 + Cookie 令牌 → 反向代理到 DSH Web UI (127.0.0.1:3080)
+       │      └─ HTML 注入：data-lan-device="phone" + 手机紧凑排版 CSS + randomUUID polyfill
+       └─ 超限 → 429 限流页
+
+电脑 http://127.0.0.1:3088/lan-gate/admin  → 管理页（批准/拒绝/撤销/设置访问方式）
+```
+
+- 网关是**独立子进程**，与 DSH 主进程隔离：崩溃不影响主服务，插件停止时自动终止。
+- DSH 主 webserver 仍只监听 `127.0.0.1`，不暴露到局域网（官方 CLI 有意禁止 `--host 0.0.0.0`，因为 `/api` 无认证层）。**只有经本网关批准、持有令牌的设备才能到达 DSH。**
+
+## 🚀 快速开始
+
+### 方式零：`dsh plugin add`（标准安装，官方插件生态）
+
+```bash
+# 本地目录安装（先在仓库所在目录执行）
+dsh plugin --profile web add ./dsh-mobile-gate
+```
+
+> 本仓库声明了 `dsh.bundle` manifest，安装后自动激活配置层，无需手写 patch。
+
+### 方式一：静态挂载（推荐，重启后常驻）
+
+1. 把本仓库 clone 或下载到本机任意目录：
+   ```bash
+   git clone https://github.com/Bernardxu123/dsh-mobile-gate.git
+   ```
+2. 编辑 DSH 配置补丁 `~/.dsh/profiles/web/cordis.patch.yml`（没有则创建，内容是空数组 `[]` 时直接替换），参照 [`cordis.patch.yml.example`](cordis.patch.yml.example) 追加：
+   ```yaml
+   - insert:
+       - id: dsh-mobile-gate
+         # Windows 绝对路径用 file:/// 形式
+         name: 'file:///D:/path/to/dsh-mobile-gate/lan-gate.mjs'
+   ```
+3. 重启 DSH。网关自动监听 `0.0.0.0:3088`。
+
+### 方式二：动态插件（不重启 DSH，即时生效）
+
+在 DSH 会话中把 `lan-gate.mjs` 的 `apply` 逻辑作为动态 Cordis 插件注册（Host 端），插件通过 `subprocess` 服务 spawn 网关进程；插件停止/卸载时网关随之终止。
+
+### 使用流程
+
+1. 电脑浏览器打开管理页：<http://127.0.0.1:3088/lan-gate/admin>（本机也可直接打开 DSH）
+2. 手机连上**同一 Wi-Fi**，访问管理页中列出的地址，例如 `http://192.168.31.108:3088`
+3. 手机显示「等待本机批准」；回到电脑管理页，在「待批准设备」中为它选择访问方式：
+   - **手机** = 紧凑排版（推荐）
+   - **电脑** = 桌面布局
+   - **自动** = 按设备自适应
+4. 点「允许」，手机刷新页面即自动领取令牌并进入 DSH Web UI。
+
+## ⚙️ 配置
+
+环境变量（修改 `lib/lan-gate-server.cjs` 顶部默认值，或启动前设置环境变量）：
+
+| 变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `LAN_GATE_PORT` | `3088` | 网关监听端口 |
+| `LAN_GATE_HOST` | `0.0.0.0` | 监听地址（收紧为 `127.0.0.1` 可仅本机使用） |
+| `LAN_GATE_TARGET_PORT` | `3080` | DSH Web UI 端口 |
+| `LAN_GATE_RATE_LIMIT` | `120` | 每 IP 每分钟请求上限 |
+
+- 端口被占用时自动递增尝试（最多 +20）。
+- 设备审批记录持久化在 `~/.dsh/lan-gate-state.json`（重启 DSH 后已批准设备仍在；待批准列表为内存态，重启后需重新访问触发）。
+
+## 🧑‍💻 管理 API（仅本机可调用）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/lan-gate/status` | 状态 JSON：地址列表、待批准/已批准/已拒绝设备 |
+| `POST` | `/lan-gate/action` | `{action: approve\|deny\|revoke\|revoke-all\|set-kind, ip, kind}` |
+
+示例：
+```bash
+curl http://127.0.0.1:3088/lan-gate/status
+curl -X POST http://127.0.0.1:3088/lan-gate/action \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"approve","ip":"192.168.31.125","kind":"phone"}'
+```
+
+## 🧱 手机端布局优化（已内置）
+
+代理返回的 HTML 自动注入（仅对 `html[data-lan-device="phone"]` 生效，**电脑端完全不受影响**）：
+
+- 对话字号/行距压缩，Markdown 排版适配窄屏
+- 输入区底部：**权限选择器与模型选择器压缩为 24px 小胶囊按钮**，字号 11px，模型隐藏 effort 后缀、超长省略，彻底解决手机端两元素重叠
+- 弹窗/菜单全屏适配，触摸目标加大（`min-height:32px`、`touch-action:manipulation`）
+- `crypto.randomUUID` polyfill（HTTP 非安全上下文必需，否则前端白屏）
+
+## ❓ 常见问题
+
+**Q: 手机访问提示「连接被拒绝」？**
+A: 确认手机与电脑在同一局域网；Windows 首次监听可能弹防火墙提示，需允许 Node.js 入站，或手动添加：
+```powershell
+New-NetFirewallRule -DisplayName 'DSH Mobile Gate 3088' -Direction Inbound -LocalPort 3088 -Protocol TCP -Action Allow -Profile Any
+```
+
+**Q: 电脑管理页一直显示「加载中…」？**
+A: 刷新页面即可（旧版管理页内嵌 JS 存在引号嵌套 bug，已在 v1.0.0 修复；如仍异常请确认浏览器无缓存）。
+
+**Q: 批准后手机页面空白？**
+A: 多为 HTTP 非安全上下文缺少 `crypto.randomUUID`，网关已注入 polyfill；若仍异常请反馈浏览器型号与版本。
+
+**Q: 如何彻底移除？**
+A: 静态挂载：删除 `cordis.patch.yml` 中的 insert 条目并重启；动态插件：直接 stop/undefine 插件，网关进程随之终止。
+
+## ⚠️ 安全须知
+
+- 网关无独立认证层，仅限**可信局域网**使用；批准设备前请确认其身份。
+- DSH Web UI 走明文 HTTP，令牌经 Cookie 传递，请勿跨不可信网络使用。
+- 建议定期在管理页「全部撤销」，重新审批设备。
+
+## 📦 项目结构
+
+```
+dsh-mobile-gate/
+├── lan-gate.mjs              # Cordis 插件入口（subprocess 拉起网关，管理生命周期）
+├── lib/
+│   └── lan-gate-server.cjs   # 独立网关服务器（零依赖，单文件 ~30KB）
+├── cordis.patch.yml          # dsh.bundle 配置层（dsh plugin add 安装用）
+├── cordis.patch.yml.example  # 静态挂载示例
+├── AGENTS.md                 # AI agent 仓库指南
+├── llms.txt / llms-full.txt  # LLM 文档索引 / 全文
+├── package.json              # npm 元数据 + dsh.bundle manifest
+├── README.md / README.en.md  # 双语文档
+└── LICENSE
+```
+
+## 🙏 致谢
+
+借鉴了社区优秀项目：
+- [hchao3335-maker/dsh-lan-gate](https://github.com/hchao3335-maker/dsh-lan-gate) — 门禁审批、设备令牌、限流、手机适配的设计
+- [Leon0555/dsh-lan-access](https://github.com/Leon0555/dsh-lan-access) — webserver 绑定 0.0.0.0 的直连思路
+
+本实现与其主要差异：网关为**独立子进程**（不修改 DSH 主服务配置、不动信任栅栏），并通过 `aria-haspopup`/slot 稳定选择器注入手机 CSS（抗前端版本升级）。
+
+## 📄 License
+
+[MIT](LICENSE)
+
