@@ -1,4 +1,4 @@
-# dsh-mobile-gate
+# dsh-lantern-gate
 
 > LAN mobile gateway for DeepSeek Harness (DSH): an isolated Node gateway on 0.0.0.0:3088 that reverse-proxies the local DSH Web UI to approved LAN devices, with first-visit approval, per-device token + cookie binding, per-IP rate limiting, and automatic mobile layout injection. 局域网手机安全访问 DSH 的即插即用网关。
 
@@ -6,7 +6,7 @@ For the complete combined document, see [llms-full.txt](llms-full.txt). For huma
 
 ## Key facts
 
-- [Repository](https://github.com/Bernardxu123/dsh-mobile-gate): GitHub repo, MIT license, `dsh-plugin` topic.
+- [Repository](https://github.com/yokuminto/dsh-lantern-gate): GitHub repo, MIT license, `dsh-plugin` topic.
 - [Install](README.md#方式一静态挂载推荐重启后常驻): mount via `cordis.patch.yml` (`file://` path or `dsh plugin add`), or register as a dynamic Cordis plugin; no DSH restart needed for the dynamic path.
 - [Architecture](README.md#-工作原理): standalone child-process gateway, DSH webserver untouched (still 127.0.0.1), `/api` trust fence intact.
 - [Admin page](README.md#使用流程): http://127.0.0.1:3088/lan-gate/admin — approve / deny / revoke devices, set access kind (phone/desktop/auto).
