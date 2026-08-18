@@ -1,0 +1,14 @@
+# dsh-mobile-gate — mount this plugin into your DSH web profile.
+#
+# Copy this file's content into `~/.dsh/profiles/web/cordis.patch.yml`
+# (or your profile's patch layer), adjusting the `name:` path to the
+# absolute location of lan-gate.mjs on your machine.
+#
+# Windows:  file:///D:/path/to/dsh-mobile-gate/lan-gate.mjs
+# macOS/Linux: file:///home/user/.dsh/dsh-mobile-gate/lan-gate.mjs
+#
+# After editing, restart DSH (or apply the patch). The gateway then listens
+# on 0.0.0.0:3088 and proxies approved devices to the local DSH Web UI.
+- insert:
+    - id: dsh-mobile-gate
+      name: 'file:///D:/path/to/dsh-mobile-gate/lan-gate.mjs'
