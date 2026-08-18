@@ -1,0 +1,28 @@
+# dsh-mobile-gate
+
+> LAN mobile gateway for DeepSeek Harness (DSH): an isolated Node gateway on 0.0.0.0:3088 that reverse-proxies the local DSH Web UI to approved LAN devices, with first-visit approval, per-device token + cookie binding, per-IP rate limiting, and automatic mobile layout injection. 局域网手机安全访问 DSH 的即插即用网关。
+
+For the complete combined document, see [llms-full.txt](llms-full.txt). For human-readable docs, see [README.md](README.md) (中文) and [README.en.md](README.en.md) (English).
+
+## Key facts
+
+- [Repository](https://github.com/Bernardxu123/dsh-mobile-gate): GitHub repo, MIT license, `dsh-plugin` topic.
+- [Install](README.md#方式一静态挂载推荐重启后常驻): mount via `cordis.patch.yml` (`file://` path or `dsh plugin add`), or register as a dynamic Cordis plugin; no DSH restart needed for the dynamic path.
+- [Architecture](README.md#-工作原理): standalone child-process gateway, DSH webserver untouched (still 127.0.0.1), `/api` trust fence intact.
+- [Admin page](README.md#使用流程): http://127.0.0.1:3088/lan-gate/admin — approve / deny / revoke devices, set access kind (phone/desktop/auto).
+- [Configuration](README.md#-配置): env vars `LAN_GATE_PORT` (3088), `LAN_GATE_HOST` (0.0.0.0), `LAN_GATE_TARGET_PORT` (3080), `LAN_GATE_RATE_LIMIT` (120).
+- [Security model](README.md#-安全机制): first-visit approval, one-time token bound to one browser, 120 req/min per IP, loopback & LAN IP bypass.
+- [Mobile adaptation](README.md#-手机端布局优化已内置): injects `data-lan-device="phone"` + compact CSS (permission/model selectors become 24px pill buttons) + `crypto.randomUUID` polyfill; desktop unaffected.
+
+## Documentation
+
+- [README.md (中文)](README.md): features, architecture, quick start, config, admin API, mobile layout, FAQ, security notes.
+- [README.en.md (English)](README.en.md): same content in English.
+- [cordis.patch.yml.example](cordis.patch.yml.example): static mount example.
+- [package.json](package.json): npm metadata with `dsh.bundle` manifest for `dsh plugin add`.
+- [AGENTS.md](AGENTS.md): repository guide for AI agents.
+
+## Source layout
+
+- [lan-gate.mjs](lan-gate.mjs): Cordis plugin entry — spawns the gateway child process via the `subprocess` service and manages its lifecycle.
+- [lib/lan-gate-server.cjs](lib/lan-gate-server.cjs): standalone zero-dependency gateway server (~30KB single file): HTTP proxy, WebSocket upgrade proxy, approval state machine, token cookies, rate limiting, admin page + JSON API, mobile CSS injection.
