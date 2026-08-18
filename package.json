@@ -1,7 +1,7 @@
 {
-  "name": "dsh-mobile-gate",
+  "name": "dsh-lantern-gate",
   "version": "1.1.0",
-  "description": "LAN mobile gateway for DeepSeek Harness (DSH): isolated Node gateway on 0.0.0.0 reverse-proxying the DSH Web UI with first-visit approval, per-device tokens, rate limiting, and mobile layout injection. 局域网手机安全访问 DSH 的即插即用网关：本机审批、设备令牌、限流、手机端紧凑排版适配。",
+  "description": "LAN mobile gateway for DeepSeek Harness (DSH): isolated Node gateway on 0.0.0.0 reverse-proxying the DSH Web UI with first-visit approval, per-device tokens, rate limiting, and mobile layout injection. 独立维护副本（源自 Bernardxu123/dsh-mobile-gate）。局域网手机安全访问 DSH 的即插即用网关：本机审批、设备令牌、限流、手机端紧凑排版适配。",
   "license": "MIT",
   "type": "module",
   "main": "lan-gate.mjs",
@@ -41,7 +41,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Bernardxu123/dsh-mobile-gate.git"
+    "url": "git+https://github.com/yokuminto/dsh-lantern-gate.git"
   },
   "engines": {
     "node": ">=18"
