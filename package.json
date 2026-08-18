@@ -1,0 +1,49 @@
+{
+  "name": "dsh-mobile-gate",
+  "version": "1.1.0",
+  "description": "LAN mobile gateway for DeepSeek Harness (DSH): isolated Node gateway on 0.0.0.0 reverse-proxying the DSH Web UI with first-visit approval, per-device tokens, rate limiting, and mobile layout injection. 局域网手机安全访问 DSH 的即插即用网关：本机审批、设备令牌、限流、手机端紧凑排版适配。",
+  "license": "MIT",
+  "type": "module",
+  "main": "lan-gate.mjs",
+  "files": [
+    "lan-gate.mjs",
+    "lib",
+    "cordis.patch.yml",
+    "AGENTS.md",
+    "llms.txt",
+    "llms-full.txt",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-plugin-add",
+    "deepseek-harness",
+    "deepseek-harness-plugin",
+    "lan",
+    "局域网",
+    "mobile",
+    "phone",
+    "mobile-ui",
+    "remote-access",
+    "reverse-proxy",
+    "gateway",
+    "approval",
+    "rate-limit",
+    "ai-agent"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bernardxu123/dsh-mobile-gate.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
