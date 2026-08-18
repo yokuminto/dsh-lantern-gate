@@ -1,5 +1,7 @@
-# dsh-mobile-gate · LAN Mobile Gateway for DeepSeek Harness (DSH)
+# dsh-lantern-gate · LAN Mobile Gateway for DeepSeek Harness (DSH)
 
+> Self-maintained snapshot of [Bernardxu123/dsh-mobile-gate](https://github.com/Bernardxu123/dsh-mobile-gate) (2026-08-17), **no upstream sync**; future changes happen here.
+>
 > Let phones and tablets on your LAN **safely access** your local [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web UI, with **mobile-friendly layout** injected automatically.
 >
 > 中文文档: [README.md](README.md) · LLM index: [llms.txt](llms.txt) · Agent guide: [AGENTS.md](AGENTS.md)
@@ -59,7 +61,7 @@ PC http://127.0.0.1:3088/lan-gate/admin → admin page (approve / deny / revoke 
 
 ```bash
 # Install from a local checkout (run in the directory containing this repo)
-dsh plugin --profile web add ./dsh-mobile-gate
+dsh plugin --profile web add github:yokuminto/dsh-lantern-gate
 ```
 
 > This repo declares a `dsh.bundle` manifest, so the config layer activates automatically after install — no manual patch needed.
@@ -68,13 +70,13 @@ dsh plugin --profile web add ./dsh-mobile-gate
 
 1. Clone or download this repo:
    ```bash
-   git clone https://github.com/Bernardxu123/dsh-mobile-gate.git
+   git clone https://github.com/yokuminto/dsh-lantern-gate.git
    ```
 2. Edit `~/.dsh/profiles/web/cordis.patch.yml` (create it if missing; if it contains only `[]`, replace it), following [`cordis.patch.yml.example`](cordis.patch.yml.example):
    ```yaml
    - insert:
-       - id: dsh-mobile-gate
-         name: 'file:///D:/path/to/dsh-mobile-gate/lan-gate.mjs'
+       - id: dsh-lantern-gate
+         name: 'file:///D:/path/to/dsh-lantern-gate/lan-gate.mjs'
    ```
 3. Restart DSH. The gateway listens on `0.0.0.0:3088`.
 
@@ -155,7 +157,7 @@ A: Static mount: delete the insert entry and restart. Dynamic plugin: stop/undef
 ## 📦 Project structure
 
 ```
-dsh-mobile-gate/
+dsh-lantern-gate/
 ├── lan-gate.mjs              # Cordis plugin entry (spawns the gateway via subprocess)
 ├── lib/
 │   └── lan-gate-server.cjs   # Standalone gateway server (zero-dependency, single file ~30KB)
