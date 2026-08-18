@@ -1,9 +1,9 @@
-# dsh-mobile-gate — bundle patch layer
+# dsh-lantern-gate — bundle patch layer
 #
 # Applied when a profile lists this package in dsh.profile.bundles
-# (installed via `dsh plugin --profile web add dsh-mobile-gate`).
+# (installed via `dsh plugin --profile web add github:yokuminto/dsh-lantern-gate`).
 # The row references the package by name; Node resolution finds
 # lan-gate.mjs inside the installed package.
 - insert:
-    - id: dsh-mobile-gate
-      name: dsh-mobile-gate
+    - id: dsh-lantern-gate
+      name: dsh-lantern-gate
